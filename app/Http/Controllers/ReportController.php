@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
@@ -33,21 +34,65 @@ class ReportController extends Controller
     public function create(Request $request)
     {
         $request->validate([
-            'report'=> 'required|string',
+            'incidentType'=> 'required|string',
             'description'=> 'nullable|string',
-            'location'=> 'required|array',
-            'location.latitude'=> 'required|numeric',
-            'location.longitude'=> 'required|numeric',
+            'location'=> 'required',
         ]);
         
-        $report = Report::create([
-            'title'=> $request->report,
-            'description'=> $request->description,
-            'latitude'=> $request->location['latitude'],
-            'longitude'=> $request->location['longitude'],
-            'user_id'=> Auth::id()
+        // Check if user is authenticated
+        if (!Auth::check()) {
+            return response()->json(['error' => 'User not authenticated'], 401);
+        }
+        
+        // Log the request data for debugging
+        \Log::info('Report creation attempt', [
+            'request_data' => $request->all(),
+            'user_id' => Auth::id()
         ]);
-        return response()->json($report, 201);
+        
+        try {
+            // Extract latitude and longitude from the location object
+            $latitude = null;
+            $longitude = null;
+            
+            if ($request->has('location')) {
+                if (is_array($request->location)) {
+                    // If location is sent as an array with lat/lng properties
+                    $latitude = $request->location['latitude'] ?? null;
+                    $longitude = $request->location['longitude'] ?? null;
+                } elseif (is_object($request->location)) {
+                    // If location is sent as an object
+                    $location = $request->location;
+                    $latitude = $location->latitude ?? null;
+                    $longitude = $location->longitude ?? null;
+                }
+            }
+            
+            if (!$latitude || !$longitude) {
+                return response()->json(['error' => 'Invalid location format'], 400);
+            }
+            
+            $report = Report::create([
+                'title'=> $request->incidentType, // Changed from report to incidentType
+                'description'=> $request->description,
+                'latitude'=> $latitude,
+                'longitude'=> $longitude,
+                'user_id'=> Auth::id()
+            ]);
+            
+            // Log successful creation
+            \Log::info('Report created successfully', ['report_id' => $report->id]);
+            
+            return response()->json($report, 201);
+        } catch (\Exception $e) {
+            // Log any errors that occur
+            \Log::error('Failed to create report', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json(['error' => 'Failed to create report: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
