@@ -45,7 +45,7 @@ class ReportController extends Controller
         }
         
         // Log the request data for debugging
-        \Log::info('Report creation attempt', [
+        Log::info('Report creation attempt', [
             'request_data' => $request->all(),
             'user_id' => Auth::id()
         ]);
@@ -81,12 +81,12 @@ class ReportController extends Controller
             ]);
             
             // Log successful creation
-            \Log::info('Report created successfully', ['report_id' => $report->id]);
+            Log::info('Report created successfully', ['report_id' => $report->id]);
             
             return response()->json($report, 201);
         } catch (\Exception $e) {
             // Log any errors that occur
-            \Log::error('Failed to create report', [
+            Log::error('Failed to create report', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
